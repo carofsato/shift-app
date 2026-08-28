@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>シフト管理</title>
+  <title>シンプルシフト管理</title>
   <style>
     :root {
       --primary-color: #2b6cb0;
@@ -20,7 +20,7 @@
       font-size: 18px;
     }
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
       background: var(--card-bg);
       padding: 20px;
@@ -36,8 +36,8 @@
     }
     .tab-btn {
       flex: 1;
-      padding: 14px;
-      font-size: 18px;
+      padding: 12px 8px;
+      font-size: 16px;
       font-weight: bold;
       border: 2px solid var(--primary-color);
       background: white;
@@ -113,6 +113,18 @@
       border-radius: 6px;
     }
 
+    .event-select-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-left: 10px;
+    }
+    .event-select-group select {
+      padding: 6px;
+      font-size: 14px;
+    }
+
     .submit-btn {
       width: 100%;
       padding: 16px;
@@ -124,10 +136,6 @@
       border-radius: 8px;
       cursor: pointer;
       margin-top: 20px;
-    }
-    .submit-btn:disabled {
-      background-color: #a0aec0;
-      cursor: not-allowed;
     }
 
     .table-title {
@@ -149,12 +157,30 @@
     }
     th, td {
       border: 1px solid #a0aec0;
-      padding: 8px 4px;
-      font-size: 15px;
+      padding: 6px 4px;
+      font-size: 14px;
     }
     th { background: #edf2f7; }
     .sat-col { background-color: #ebf8ff; }
     .sun-col { background-color: #fff5f5; }
+    
+    .event-display-cell {
+      background-color: #fefcbf;
+      color: #744210;
+      font-size: 12px;
+      font-weight: normal;
+      padding: 4px 2px;
+      line-height: 1.2;
+    }
+    .event-tag-item {
+      display: block;
+      border-bottom: 1px dashed #d69e2e;
+      padding: 1px 0;
+    }
+    .event-tag-item:last-child {
+      border-bottom: none;
+    }
+
     .comment-cell {
       font-size: 12px;
       color: #4a5568;
@@ -177,7 +203,14 @@
       color: white;
     }
 
-    /* ローディング表示 */
+    .management-block {
+      background: #edf2f7;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 15px;
+      margin-top: 15px;
+    }
+
     #loading-overlay {
       display: none;
       position: fixed;
@@ -194,10 +227,10 @@
       @page { size: A4 landscape; margin: 10mm; }
       body { background: white; padding: 0; font-size: 12px; }
       .container { box-shadow: none; padding: 0; max-width: 100%; }
-      h1, .tab-bar, .action-bar, #input-view, .member-manager { display: none !important; }
+      h1, .tab-bar, .action-bar, #input-view, #event-input-view, .management-block { display: none !important; }
       #list-view { display: block !important; }
       .table-title { font-size: 18px; margin-bottom: 8px; }
-      th, td { padding: 4px 2px; font-size: 12px; }
+      th, td { padding: 4px 2px; font-size: 11px; }
     }
   </style>
 </head>
@@ -206,18 +239,19 @@
 <div id="loading-overlay">データを読み込み中...</div>
 
 <div class="container">
-  <h1>シフト管理アプリ</h1>
+  <h1>シフト管理アプリ(金沢東別院)</h1>
 
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('input')">シフト入力</button>
-    <button class="tab-btn" onclick="switchTab('list')">全員の一覧表示</button>
+    <button class="tab-btn" onclick="switchTab('event-input')">イベント入力</button>
+    <button class="tab-btn" onclick="switchTab('list')">一覧表示</button>
   </div>
 
-  <!-- 【入力画面】 -->
+  <!-- 【シフト入力画面】 -->
   <div id="input-view">
     <div class="form-group">
       <label>対象の月を選択:</label>
-      <input type="month" id="target-month" onchange="initDateList()">
+      <input type="month" class="target-month-picker" onchange="onMonthChange(this.value)">
     </div>
 
     <div class="form-group">
@@ -231,7 +265,23 @@
 
     <div id="dates-container" class="date-list"></div>
 
-    <button id="save-btn" class="submit-btn" onclick="saveShift()">この内容で保存する</button>
+    <button class="submit-btn" onclick="saveShift()">この内容でシフトを保存</button>
+  </div>
+
+  <!-- 【イベント入力画面】 -->
+  <div id="event-input-view" style="display: none;">
+    <div class="form-group">
+      <label>対象の月を選択:</label>
+      <input type="month" class="target-month-picker" onchange="onMonthChange(this.value)">
+    </div>
+
+    <p style="font-size: 15px; color: #718096; margin-bottom: 8px;">
+      ※ イベントを選択してください（1日最大3つ）。
+    </p>
+
+    <div id="event-dates-container" class="date-list"></div>
+
+    <button class="submit-btn" onclick="saveMonthlyEvents()">この内容でイベントを保存</button>
   </div>
 
   <!-- 【一覧・出力画面】 -->
@@ -246,13 +296,24 @@
       <table id="shift-table"></table>
     </div>
 
-    <div class="member-manager" style="background:#edf2f7; padding:15px; border-radius:8px; font-size:15px;">
+    <!-- メンバー管理ブロック -->
+    <div class="management-block">
       <strong>担当者管理</strong>
       <div style="display:flex; gap:8px; margin-top:8px;">
         <input type="text" id="new-member-name" placeholder="新しい担当者名" style="font-size:16px; padding:8px;">
         <button onclick="addMember()" style="padding:8px 16px; font-size:16px; cursor:pointer; border-radius:6px; border:1px solid #a0aec0; background:white;">追加</button>
       </div>
       <div id="member-tags" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- イベント管理ブロック -->
+    <div class="management-block">
+      <strong>イベント管理</strong>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input type="text" id="new-event-name" placeholder="新しいイベント名" style="font-size:16px; padding:8px;">
+        <button onclick="addEventMaster()" style="padding:8px 16px; font-size:16px; cursor:pointer; border-radius:6px; border:1px solid #a0aec0; background:white;">追加</button>
+      </div>
+      <div id="event-tags" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;"></div>
     </div>
   </div>
 </div>
@@ -263,7 +324,9 @@
 
   let appData = {
     members: ["佐藤", "鈴木", "高橋"],
-    shifts: {}
+    eventMasters: ["会議", "研修", "清掃"],
+    shifts: {},
+    monthlyEvents: {}
   };
 
   function showLoading(text) {
@@ -276,6 +339,13 @@
     document.getElementById('loading-overlay').style.display = 'none';
   }
 
+  // 月変更時の同期
+  function onMonthChange(val) {
+    document.querySelectorAll('.target-month-picker').forEach(el => el.value = val);
+    initDateList();
+    initEventDateList();
+  }
+
   // クラウドからデータ取得
   async function fetchCloudData() {
     if (GAS_API_URL.includes("ここにステップ1")) return;
@@ -283,8 +353,11 @@
     try {
       const res = await fetch(GAS_API_URL);
       const data = await res.json();
-      if (data && data.members) {
-        appData = data;
+      if (data) {
+        if (data.members) appData.members = data.members;
+        if (data.eventMasters) appData.eventMasters = data.eventMasters;
+        if (data.shifts) appData.shifts = data.shifts;
+        if (data.monthlyEvents) appData.monthlyEvents = data.monthlyEvents;
       }
     } catch (err) {
       console.warn("クラウドデータ取得失敗。ローカルで動作します。", err);
@@ -292,7 +365,9 @@
       hideLoading();
       updateMemberSelect();
       renderMemberList();
+      renderEventMasterList();
       initDateList();
+      initEventDateList();
     }
   }
 
@@ -322,21 +397,27 @@
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const monthStr = nextMonth.toISOString().slice(0, 7);
-    document.getElementById('target-month').value = monthStr;
+    document.querySelectorAll('.target-month-picker').forEach(el => el.value = monthStr);
 
     fetchCloudData();
   };
 
   function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('input-view').style.display = 'none';
+    document.getElementById('event-input-view').style.display = 'none';
+    document.getElementById('list-view').style.display = 'none';
+
     if (tab === 'input') {
       document.querySelectorAll('.tab-btn')[0].classList.add('active');
       document.getElementById('input-view').style.display = 'block';
-      document.getElementById('list-view').style.display = 'none';
       loadCurrentUserData();
-    } else {
+    } else if (tab === 'event-input') {
       document.querySelectorAll('.tab-btn')[1].classList.add('active');
-      document.getElementById('input-view').style.display = 'none';
+      document.getElementById('event-input-view').style.display = 'block';
+      loadCurrentMonthlyEvents();
+    } else {
+      document.querySelectorAll('.tab-btn')[2].classList.add('active');
       document.getElementById('list-view').style.display = 'block';
       renderShiftTable();
     }
@@ -361,6 +442,17 @@
       const tag = document.createElement('span');
       tag.style.cssText = 'background:white; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e0; font-size:15px; font-weight:bold;';
       tag.innerHTML = `${m} <span style="color:#e53e3e; cursor:pointer; margin-left:6px;" onclick="removeMember(${idx})">×</span>`;
+      container.appendChild(tag);
+    });
+  }
+
+  function renderEventMasterList() {
+    const container = document.getElementById('event-tags');
+    container.innerHTML = '';
+    (appData.eventMasters || []).forEach((ev, idx) => {
+      const tag = document.createElement('span');
+      tag.style.cssText = 'background:white; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e0; font-size:15px; font-weight:bold;';
+      tag.innerHTML = `${ev} <span style="color:#e53e3e; cursor:pointer; margin-left:6px;" onclick="removeEventMaster(${idx})">×</span>`;
       container.appendChild(tag);
     });
   }
@@ -393,8 +485,38 @@
     }
   }
 
+  async function addEventMaster() {
+    const input = document.getElementById('new-event-name');
+    const name = input.value.trim();
+    if (!name) return;
+    if (!appData.eventMasters) appData.eventMasters = [];
+    if (appData.eventMasters.length >= 20) {
+      alert('イベントは最大20個までです。');
+      return;
+    }
+    if (appData.eventMasters.includes(name)) {
+      alert('すでに同名のイベントが存在します。');
+      return;
+    }
+    appData.eventMasters.push(name);
+    input.value = '';
+    renderEventMasterList();
+    initEventDateList();
+    await syncToCloud();
+  }
+
+  async function removeEventMaster(index) {
+    if (confirm(`「${appData.eventMasters[index]}」を削除しますか？`)) {
+      appData.eventMasters.splice(index, 1);
+      renderEventMasterList();
+      initEventDateList();
+      await syncToCloud();
+    }
+  }
+
+  // シフト入力用の日付行生成
   function initDateList() {
-    const monthVal = document.getElementById('target-month').value;
+    const monthVal = document.querySelector('.target-month-picker').value;
     if (!monthVal) return;
     const [year, month] = monthVal.split('-').map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
@@ -414,11 +536,49 @@
       row.innerHTML = `
         <div class="date-label">${d}日 (${weekDays[dayOfWeek]})</div>
         <button type="button" class="btn-circle" id="circle-${d}" onclick="toggleCircle(${d})"></button>
-        <input type="text" class="comment-input" id="comment-${d}" placeholder="メモ欄(記入は任意)">
+        <input type="text" class="comment-input" id="comment-${d}" placeholder="メモ欄">
       `;
       container.appendChild(row);
     }
     loadCurrentUserData();
+  }
+
+  // イベント入力用の日付行生成
+  function initEventDateList() {
+    const monthVal = document.querySelector('.target-month-picker').value;
+    if (!monthVal) return;
+    const [year, month] = monthVal.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const container = document.getElementById('event-dates-container');
+    container.innerHTML = '';
+
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    const events = appData.eventMasters || [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateObj = new Date(year, month - 1, d);
+      const dayOfWeek = dateObj.getDay();
+      const isSat = dayOfWeek === 6;
+      const isSun = dayOfWeek === 0;
+
+      let optionsHtml = '<option value="">-- イベントなし --</option>';
+      events.forEach(ev => {
+        optionsHtml += `<option value="${ev}">${ev}</option>`;
+      });
+
+      const row = document.createElement('div');
+      row.className = `date-row ${isSat ? 'is-sat' : ''} ${isSun ? 'is-sun' : ''}`;
+      row.innerHTML = `
+        <div class="date-label">${d}日 (${weekDays[dayOfWeek]})</div>
+        <div class="event-select-group">
+          <select id="event-${d}-1">${optionsHtml}</select>
+          <select id="event-${d}-2">${optionsHtml}</select>
+          <select id="event-${d}-3">${optionsHtml}</select>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+    loadCurrentMonthlyEvents();
   }
 
   function toggleCircle(day) {
@@ -433,10 +593,10 @@
   }
 
   function loadCurrentUserData() {
-    const month = document.getElementById('target-month').value;
+    const month = document.querySelector('.target-month-picker').value;
     const user = document.getElementById('user-select').value;
     const key = `${month}_${user}`;
-    const userData = appData.shifts[key] || {};
+    const userData = (appData.shifts && appData.shifts[key]) ? appData.shifts[key] : {};
 
     const [year, m] = month.split('-').map(Number);
     const daysInMonth = new Date(year, m, 0).getDate();
@@ -457,8 +617,26 @@
     }
   }
 
+  function loadCurrentMonthlyEvents() {
+    const month = document.querySelector('.target-month-picker').value;
+    const monthEvents = (appData.monthlyEvents && appData.monthlyEvents[month]) ? appData.monthlyEvents[month] : {};
+
+    const [year, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, m, 0).getDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const selectedList = monthEvents[d] || [];
+      for (let i = 1; i <= 3; i++) {
+        const sel = document.getElementById(`event-${d}-${i}`);
+        if (sel) {
+          sel.value = selectedList[i - 1] || "";
+        }
+      }
+    }
+  }
+
   async function saveShift() {
-    const month = document.getElementById('target-month').value;
+    const month = document.querySelector('.target-month-picker').value;
     const user = document.getElementById('user-select').value;
     if (!user) {
       alert('担当者を選択してください。');
@@ -477,12 +655,35 @@
       }
     }
 
+    if (!appData.shifts) appData.shifts = {};
     appData.shifts[key] = userShift;
     await syncToCloud();
   }
 
+  async function saveMonthlyEvents() {
+    const month = document.querySelector('.target-month-picker').value;
+    const [year, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, m, 0).getDate();
+
+    const eventsData = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayEvents = [];
+      for (let i = 1; i <= 3; i++) {
+        const val = document.getElementById(`event-${d}-${i}`).value;
+        if (val) dayEvents.push(val);
+      }
+      if (dayEvents.length > 0) {
+        eventsData[d] = dayEvents;
+      }
+    }
+
+    if (!appData.monthlyEvents) appData.monthlyEvents = {};
+    appData.monthlyEvents[month] = eventsData;
+    await syncToCloud();
+  }
+
   function renderShiftTable() {
-    const monthVal = document.getElementById('target-month').value;
+    const monthVal = document.querySelector('.target-month-picker').value;
     const [year, month] = monthVal.split('-').map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
     
@@ -490,18 +691,32 @@
 
     const table = document.getElementById('shift-table');
     const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    const monthEvents = (appData.monthlyEvents && appData.monthlyEvents[monthVal]) ? appData.monthlyEvents[monthVal] : {};
 
-    let html = `<thead><tr><th style="min-width:70px;">担当者</th>`;
+    // 1行目: 日付ヘッダー
+    let html = `<thead><tr><th style="min-width:80px;">日付</th>`;
     for (let d = 1; d <= daysInMonth; d++) {
       const dayOfWeek = new Date(year, month - 1, d).getDay();
       const cls = dayOfWeek === 6 ? 'sat-col' : dayOfWeek === 0 ? 'sun-col' : '';
       html += `<th class="${cls}">${d}<br><small>(${weekDays[dayOfWeek]})</small></th>`;
     }
+    html += `</tr>`;
+
+    // 日付ヘッダー直下: イベント表示行
+    html += `<tr><th style="background:#fefcbf; color:#744210;">イベント</th>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayOfWeek = new Date(year, month - 1, d).getDay();
+      const cls = dayOfWeek === 6 ? 'sat-col' : dayOfWeek === 0 ? 'sun-col' : '';
+      const evList = monthEvents[d] || [];
+      let evHtml = evList.map(ev => `<span class="event-tag-item">${ev}</span>`).join('');
+      html += `<td class="${cls} event-display-cell">${evHtml}</td>`;
+    }
     html += `</tr></thead><tbody>`;
 
+    // 2行目以降: 各担当者の出勤予定
     appData.members.forEach(member => {
       const key = `${monthVal}_${member}`;
-      const userShift = appData.shifts[key] || {};
+      const userShift = (appData.shifts && appData.shifts[key]) ? appData.shifts[key] : {};
       html += `<tr><td><strong>${member}</strong></td>`;
 
       for (let d = 1; d <= daysInMonth; d++) {
