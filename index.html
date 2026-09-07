@@ -223,14 +223,90 @@
       z-index: 9999;
     }
 
+    /* 印刷用カレンダーエリア（画面表示時は非表示） */
+    #print-calendar-area {
+      display: none;
+    }
+
+    /* 印刷スタイルの設定 */
     @media print {
-      @page { size: A4 landscape; margin: 10mm; }
-      body { background: white; padding: 0; font-size: 12px; }
-      .container { box-shadow: none; padding: 0; max-width: 100%; }
-      h1, .tab-bar, .action-bar, #input-view, #event-input-view, .management-block { display: none !important; }
-      #list-view { display: block !important; }
-      .table-title { font-size: 18px; margin-bottom: 8px; }
-      th, td { padding: 4px 2px; font-size: 11px; }
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+      body {
+        background: white;
+        padding: 0;
+        font-size: 10px;
+        color: #000;
+      }
+      .container {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      /* 画面用の全要素を非表示 */
+      h1, .tab-bar, .action-bar, #input-view, #event-input-view, .management-block, #list-view {
+        display: none !important;
+      }
+      
+      /* 印刷専用カレンダー表示 */
+      #print-calendar-area {
+        display: block !important;
+      }
+
+      .print-title {
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+
+      table.print-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin-bottom: 0px;
+      }
+
+      table.print-table th, table.print-table td {
+        border: 1px solid #4a5568;
+        padding: 2px 1px;
+        text-align: center;
+        font-size: 9px;
+        word-break: break-all;
+      }
+
+      table.print-table th {
+        background-color: #edf2f7 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: bold;
+      }
+
+      /* カレンダーの列幅設定 */
+      .col-member { width: 12%; }
+      .col-day { width: 12.57%; }
+
+      /* 曜日別カラー */
+      .print-sun { background-color: #fff5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-sat { background-color: #ebf8ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      
+      /* イベント行の背景 */
+      .print-event-row td {
+        background-color: #fefcbf !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 8px;
+        line-height: 1.1;
+      }
+
+      /* 空白日のスタイル */
+      .empty-day {
+        background-color: #f7fafc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
   </style>
 </head>
@@ -315,6 +391,12 @@
       </div>
       <div id="event-tags" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;"></div>
     </div>
+  </div>
+
+  <!-- 【印刷専用カレンダーエリア】 -->
+  <div id="print-calendar-area">
+    <div id="print-header-title" class="print-title"></div>
+    <div id="print-calendar-content"></div>
   </div>
 </div>
 
@@ -730,6 +812,125 @@
 
     html += `</tbody>`;
     table.innerHTML = html;
+
+    // 印刷用カレンダーのレンダリングを呼び出し
+    renderPrintCalendar(year, month, monthVal, daysInMonth, monthEvents);
+  }
+
+  // 印刷専用のカレンダー(週単位テーブル)を出力する関数
+  function renderPrintCalendar(year, month, monthVal, daysInMonth, monthEvents) {
+    document.getElementById('print-header-title').textContent = `${year}年${month}月 勤務予定表`;
+    const container = document.getElementById('print-calendar-content');
+    container.innerHTML = '';
+
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    const firstDayIndex = new Date(year, month - 1, 1).getDay(); // 1日の曜日 (0:日 ~ 6:土)
+
+    // 日付を週ごとに分割 (7日ごとの配列)
+    const weeks = [];
+    let currentWeek = new Array(7).fill(null);
+
+    // 1週目の前の空欄
+    for (let i = 0; i < firstDayIndex; i++) {
+      currentWeek[i] = null;
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayOfWeek = new Date(year, month - 1, d).getDay();
+      currentWeek[dayOfWeek] = d;
+
+      if (dayOfWeek === 6 || d === daysInMonth) {
+        weeks.push(currentWeek);
+        currentWeek = new Array(7).fill(null);
+      }
+    }
+
+    // 各週ごとにテーブルを生成
+    weeks.forEach((week, weekIdx) => {
+      let tableHtml = `<table class="print-table">`;
+      tableHtml += `<colgroup><col class="col-member"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"></colgroup>`;
+
+      // 【第1週目のみ】1行目: 担当者 & 曜日
+      if (weekIdx === 0) {
+        tableHtml += `<thead><tr><th>担当者</th>`;
+        weekDays.forEach((wd, idx) => {
+          const cls = idx === 0 ? 'print-sun' : idx === 6 ? 'print-sat' : '';
+          tableHtml += `<th class="${cls}">${wd}</th>`;
+        });
+        tableHtml += `</tr></thead>`;
+      }
+
+      tableHtml += `<tbody>`;
+
+      // 2行目: 日付
+      tableHtml += `<tr>`;
+      if (weekIdx === 0) {
+        tableHtml += `<td><strong>日付</strong></td>`;
+      } else {
+        tableHtml += `<td></td>`;
+      }
+
+      for (let i = 0; i < 7; i++) {
+        const d = week[i];
+        const cls = i === 0 ? 'print-sun' : i === 6 ? 'print-sat' : '';
+        if (d) {
+          tableHtml += `<td class="${cls}"><strong>${d}日</strong></td>`;
+        } else {
+          tableHtml += `<td class="empty-day"></td>`;
+        }
+      }
+      tableHtml += `</tr>`;
+
+      // 3行目: イベント
+      tableHtml += `<tr class="print-event-row">`;
+      if (weekIdx === 0) {
+        tableHtml += `<td><strong>イベント</strong></td>`;
+      } else {
+        tableHtml += `<td></td>`;
+      }
+
+      for (let i = 0; i < 7; i++) {
+        const d = week[i];
+        const cls = i === 0 ? 'print-sun' : i === 6 ? 'print-sat' : '';
+        if (d) {
+          const evList = monthEvents[d] || [];
+          const evText = evList.join('<br>');
+          tableHtml += `<td class="${cls}">${evText}</td>`;
+        } else {
+          tableHtml += `<td class="empty-day"></td>`;
+        }
+      }
+      tableHtml += `</tr>`;
+
+      // 4行目以降: 担当者と出勤予定 (〇)
+      appData.members.forEach(member => {
+        tableHtml += `<tr>`;
+        tableHtml += `<td><strong>${member}</strong></td>`;
+
+        for (let i = 0; i < 7; i++) {
+          const d = week[i];
+          const cls = i === 0 ? 'print-sun' : i === 6 ? 'print-sat' : '';
+          if (d) {
+            const key = `${monthVal}_${member}`;
+            const userShift = (appData.shifts && appData.shifts[key]) ? appData.shifts[key] : {};
+            const mark = (userShift[d] && userShift[d].ok) ? '〇' : '';
+            tableHtml += `<td class="${cls}">${mark}</td>`;
+          } else {
+            tableHtml += `<td class="empty-day"></td>`;
+          }
+        }
+        tableHtml += `</tr>`;
+      });
+
+      tableHtml += `</tbody></table>`;
+      
+      // 週と週の間に少しの隙間を挿入（最終週以外）
+      if (weekIdx < weeks.length - 1) {
+        tableHtml += `<div style="height: 4px;"></div>`;
+      }
+
+      container.innerHTML += tableHtml;
+    });
   }
 </script>
 
