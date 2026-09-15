@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シンプルシフト管理</title>
+  <style>
+    :root {
+      --primary-color: #2b6cb0;
+      --bg-color: #f7fafc;
+      --card-bg: #ffffff;
+      --border-color: #cbd5e0;
+    }
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      background-color: var(--bg-color);
+      margin: 0;
+      padding: 16px;
+      color: #2d3748;
+      font-size: 18px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    h1 { font-size: 24px; text-align: center; margin-bottom: 20px; }
+    
+    .tab-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px 8px;
+      font-size: 16px;
+      font-weight: bold;
+      border: 2px solid var(--primary-color);
+      background: white;
+      color: var(--primary-color);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    select, input[type="text"], input[type="month"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 18px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    .date-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 15px;
+    }
+    .date-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .date-row.is-sat { color: #2b6cb0; }
+    .date-row.is-sun { color: #c53030; }
+    .date-label {
+      font-size: 20px;
+      font-weight: bold;
+      width: 120px;
+    }
+    .btn-circle {
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+      font-weight: bold;
+      border-radius: 50%;
+      border: 2px solid var(--border-color);
+      background: #edf2f7;
+      cursor: pointer;
+    }
+    .btn-circle.checked {
+      background: #bee3f8;
+      border-color: #3182ce;
+      color: #2b6cb0;
+    }
+    .comment-input {
+      flex: 1;
+      margin-left: 10px;
+      padding: 8px;
+      font-size: 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    .event-select-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-left: 10px;
+    }
+    .event-select-group select {
+      padding: 6px;
+      font-size: 14px;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      background-color: #38a169;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    .table-title {
+      font-size: 22px;
+      font-weight: bold;
+      text-align: center;
+      margin: 15px 0 10px 0;
+      color: #2d3748;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin-top: 10px;
+      margin-bottom: 25px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+    }
+    th, td {
+      border: 1px solid #a0aec0;
+      padding: 6px 4px;
+      font-size: 14px;
+    }
+    th { background: #edf2f7; }
+    .sat-col { background-color: #ebf8ff; }
+    .sun-col { background-color: #fff5f5; }
+    
+    .vertical-header {
+      writing-mode: vertical-rl;
+      text-align: center;
+      white-space: nowrap;
+      margin: 0 auto;
+      padding: 8px 4px;
+    }
+
+    .event-display-cell {
+      background-color: #fefcbf;
+      color: #744210;
+      font-size: 12px;
+      font-weight: normal;
+      padding: 4px 2px;
+      line-height: 1.2;
+    }
+    .event-tag-item {
+      display: block;
+      border-bottom: 1px dashed #d69e2e;
+      padding: 1px 0;
+    }
+    .event-tag-item:last-child {
+      border-bottom: none;
+    }
+
+    .comment-cell {
+      font-size: 12px;
+      color: #4a5568;
+      display: block;
+    }
+
+    .action-bar {
+      display: flex;
+      margin-bottom: 15px;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #3182ce;
+      color: white;
+    }
+
+    .management-block {
+      background: #edf2f7;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 15px;
+      margin-top: 15px;
+    }
+
+    #loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.7);
+      text-align: center;
+      padding-top: 200px;
+      font-size: 20px;
+      font-weight: bold;
+      z-index: 9999;
+    }
+
+    /* 印刷用カレンダーエリア（画面表示時は非表示） */
+    #print-calendar-area {
+      display: none;
+    }
+
+    /* 印刷スタイルの設定 */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+      body {
+        background: white;
+        padding: 0;
+        font-size: 10px;
+        color: #000;
+      }
+      .container {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      /* 画面用の全要素を非表示 */
+      h1, .tab-bar, .action-bar, #input-view, #event-input-view, .management-block, #list-view {
+        display: none !important;
+      }
+      
+      /* 印刷専用カレンダー表示 */
+      #print-calendar-area {
+        display: block !important;
+      }
+
+      .print-title {
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+
+      table.print-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin-bottom: 0px;
+      }
+
+      table.print-table th, table.print-table td {
+        border: 1px solid #4a5568;
+        padding: 2px 1px;
+        text-align: center;
+        font-size: 9px;
+        word-break: break-all;
+      }
+
+      table.print-table th {
+        background-color: #edf2f7 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: bold;
+      }
+
+      /* カレンダーの列幅設定 */
+      .col-member { width: 12%; }
+      .col-day { width: 12.57%; }
+
+      /* 曜日別カラー */
+      .print-sun { background-color: #fff5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-sat { background-color: #ebf8ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      
+      /* イベント行の背景 */
+      .print-event-row td {
+        background-color: #fefcbf !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 8px;
+        line-height: 1.1;
+      }
+
+      /* 空白日のスタイル */
+      .empty-day {
+        background-color: #f7fafc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay">データを読み込み中...</div>
+
+<div class="container">
+  <h1>シフト管理(金沢東別院)</h1>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('input')">シフト入力</button>
+    <button class="tab-btn" onclick="switchTab('event-input')">イベント入力</button>
+    <button class="tab-btn" onclick="switchTab('list')">一覧表示</button>
+  </div>
+
+  <!-- 【シフト入力画面】 -->
+  <div id="input-view">
+    <div class="form-group">
+      <label>対象の月を選択:</label>
+      <input type="month" class="target-month-picker" onchange="onMonthChange(this.value)">
+    </div>
+
+    <div class="form-group">
+      <label>あなたのお名前:</label>
+      <select id="user-select"></select>
+    </div>
+
+    <p style="font-size: 15px; color: #718096; margin-bottom: 8px;">
+      ※ 出勤できる日の「〇」ボタンを押して下さい（もう一度押すと消えます）。
+    </p>
+
+    <div id="dates-container" class="date-list"></div>
+
+    <button class="submit-btn" onclick="saveShift()">この内容でシフトを保存</button>
+  </div>
+
+  <!-- 【イベント入力画面】 -->
+  <div id="event-input-view" style="display: none;">
+    <div class="form-group">
+      <label>対象の月を選択:</label>
+      <input type="month" class="target-month-picker" onchange="onMonthChange(this.value)">
+    </div>
+
+    <p style="font-size: 15px; color: #718096; margin-bottom: 8px;">
+      ※ イベントを選択してください（1日最大3つ）。
+    </p>
+
+    <div id="event-dates-container" class="date-list"></div>
+
+    <button class="submit-btn" onclick="saveMonthlyEvents()">この内容でイベントを保存</button>
+  </div>
+
+  <!-- 【一覧・出力画面】 -->
+  <div id="list-view" style="display: none;">
+    <div class="action-bar">
+      <button class="action-btn" onclick="window.print()">PDF出力</button>
+    </div>
+
+    <div id="table-header-title" class="table-title"></div>
+
+    <div class="table-container">
+      <table id="shift-table"></table>
+    </div>
+
+    <!-- メンバー管理ブロック -->
+    <div class="management-block">
+      <strong>担当者管理</strong>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input type="text" id="new-member-name" placeholder="新しい担当者名" style="font-size:16px; padding:8px;">
+        <button onclick="addMember()" style="padding:8px 16px; font-size:16px; cursor:pointer; border-radius:6px; border:1px solid #a0aec0; background:white;">追加</button>
+      </div>
+      <div id="member-tags" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- イベント管理ブロック -->
+    <div class="management-block">
+      <strong>イベント管理</strong>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input type="text" id="new-event-name" placeholder="新しいイベント名" style="font-size:16px; padding:8px;">
+        <button onclick="addEventMaster()" style="padding:8px 16px; font-size:16px; cursor:pointer; border-radius:6px; border:1px solid #a0aec0; background:white;">追加</button>
+      </div>
+      <div id="event-tags" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+    </div>
+  </div>
+
+  <!-- 【印刷専用カレンダーエリア】 -->
+  <div id="print-calendar-area">
+    <div id="print-header-title" class="print-title"></div>
+    <div id="print-calendar-content"></div>
+  </div>
+</div>
+
+<script>
+  // ★ここにステップ1で取得した「ウェブアプリのURL」を貼り付けてください★
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyGrzN1bgRO6b-yXtrKwxe8NQU84rXYlOU16dcVvgwAlh22fv5_8zkLVAnke6lCJ7tj/exec";
+
+  let appData = {
+    members: ["佐藤", "鈴木", "高橋"],
+    eventMasters: ["会議", "研修", "清掃"],
+    shifts: {},
+    monthlyEvents: {}
+  };
+
+  function showLoading(text) {
+    const el = document.getElementById('loading-overlay');
+    el.textContent = text;
+    el.style.display = 'block';
+  }
+
+  function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+  }
+
+  // 月変更時の同期
+  function onMonthChange(val) {
+    document.querySelectorAll('.target-month-picker').forEach(el => el.value = val);
+    initDateList();
+    initEventDateList();
+  }
+
+  // クラウドからデータ取得
+  async function fetchCloudData() {
+    if (GAS_API_URL.includes("ここにステップ1")) return;
+    showLoading("最新データを読み込み中...");
+    try {
+      const res = await fetch(GAS_API_URL);
+      const data = await res.json();
+      if (data) {
+        if (data.members) appData.members = data.members;
+        if (data.eventMasters) appData.eventMasters = data.eventMasters;
+        if (data.shifts) appData.shifts = data.shifts;
+        if (data.monthlyEvents) appData.monthlyEvents = data.monthlyEvents;
+      }
+    } catch (err) {
+      console.warn("クラウドデータ取得失敗。ローカルで動作します。", err);
+    } finally {
+      hideLoading();
+      updateMemberSelect();
+      renderMemberList();
+      renderEventMasterList();
+      initDateList();
+      initEventDateList();
+    }
+  }
+
+  // クラウドへデータ送信
+  async function syncToCloud() {
+    if (GAS_API_URL.includes("ここにステップ1")) {
+      alert("URLが設定されていません。コード内の GAS_API_URL を設定してください。");
+      return;
+    }
+    showLoading("クラウドに保存中...");
+    try {
+      await fetch(GAS_API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(appData)
+      });
+      alert("保存が完了しました！");
+    } catch (err) {
+      alert("保存中にエラーが発生しました: " + err.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  window.onload = function() {
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const monthStr = nextMonth.toISOString().slice(0, 7);
+    document.querySelectorAll('.target-month-picker').forEach(el => el.value = monthStr);
+
+    fetchCloudData();
+  };
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('input-view').style.display = 'none';
+    document.getElementById('event-input-view').style.display = 'none';
+    document.getElementById('list-view').style.display = 'none';
+
+    if (tab === 'input') {
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      document.getElementById('input-view').style.display = 'block';
+      loadCurrentUserData();
+    } else if (tab === 'event-input') {
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      document.getElementById('event-input-view').style.display = 'block';
+      loadCurrentMonthlyEvents();
+    } else {
+      document.querySelectorAll('.tab-btn')[2].classList.add('active');
+      document.getElementById('list-view').style.display = 'block';
+      renderShiftTable();
+    }
+  }
+
+  function updateMemberSelect() {
+    const select = document.getElementById('user-select');
+    select.innerHTML = '';
+    appData.members.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    });
+    select.onchange = loadCurrentUserData;
+  }
+
+  function renderMemberList() {
+    const container = document.getElementById('member-tags');
+    container.innerHTML = '';
+    appData.members.forEach((m, idx) => {
+      const tag = document.createElement('span');
+      tag.style.cssText = 'background:white; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e0; font-size:15px; font-weight:bold;';
+      tag.innerHTML = `${m} <span style="color:#e53e3e; cursor:pointer; margin-left:6px;" onclick="removeMember(${idx})">×</span>`;
+      container.appendChild(tag);
+    });
+  }
+
+  function renderEventMasterList() {
+    const container = document.getElementById('event-tags');
+    container.innerHTML = '';
+    (appData.eventMasters || []).forEach((ev, idx) => {
+      const tag = document.createElement('span');
+      tag.style.cssText = 'background:white; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e0; font-size:15px; font-weight:bold;';
+      tag.innerHTML = `${ev} <span style="color:#e53e3e; cursor:pointer; margin-left:6px;" onclick="removeEventMaster(${idx})">×</span>`;
+      container.appendChild(tag);
+    });
+  }
+
+  async function addMember() {
+    const input = document.getElementById('new-member-name');
+    const name = input.value.trim();
+    if (!name) return;
+    if (appData.members.length >= 5) {
+      alert('担当者は最大5名までです。');
+      return;
+    }
+    if (appData.members.includes(name)) {
+      alert('すでに同名の担当者が存在します。');
+      return;
+    }
+    appData.members.push(name);
+    input.value = '';
+    updateMemberSelect();
+    renderMemberList();
+    await syncToCloud();
+  }
+
+  async function removeMember(index) {
+    if (confirm(`「${appData.members[index]}」さんを削除しますか？`)) {
+      appData.members.splice(index, 1);
+      updateMemberSelect();
+      renderMemberList();
+      await syncToCloud();
+    }
+  }
+
+  async function addEventMaster() {
+    const input = document.getElementById('new-event-name');
+    const name = input.value.trim();
+    if (!name) return;
+    if (!appData.eventMasters) appData.eventMasters = [];
+    if (appData.eventMasters.length >= 20) {
+      alert('イベントは最大20個までです。');
+      return;
+    }
+    if (appData.eventMasters.includes(name)) {
+      alert('すでに同名のイベントが存在します。');
+      return;
+    }
+    appData.eventMasters.push(name);
+    input.value = '';
+    renderEventMasterList();
+    initEventDateList();
+    await syncToCloud();
+  }
+
+  async function removeEventMaster(index) {
+    if (confirm(`「${appData.eventMasters[index]}」を削除しますか？`)) {
+      appData.eventMasters.splice(index, 1);
+      renderEventMasterList();
+      initEventDateList();
+      await syncToCloud();
+    }
+  }
+
+  // シフト入力用の日付行生成
+  function initDateList() {
+    const monthVal = document.querySelector('.target-month-picker').value;
+    if (!monthVal) return;
+    const [year, month] = monthVal.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const container = document.getElementById('dates-container');
+    container.innerHTML = '';
+
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateObj = new Date(year, month - 1, d);
+      const dayOfWeek = dateObj.getDay();
+      const isSat = dayOfWeek === 6;
+      const isSun = dayOfWeek === 0;
+
+      const row = document.createElement('div');
+      row.className = `date-row ${isSat ? 'is-sat' : ''} ${isSun ? 'is-sun' : ''}`;
+      row.innerHTML = `
+        <div class="date-label">${d}日 (${weekDays[dayOfWeek]})</div>
+        <button type="button" class="btn-circle" id="circle-${d}" onclick="toggleCircle(${d})"></button>
+        <input type="text" class="comment-input" id="comment-${d}" placeholder="メモ欄">
+      `;
+      container.appendChild(row);
+    }
+    loadCurrentUserData();
+  }
+
+  // イベント入力用の日付行生成
+  function initEventDateList() {
+    const monthVal = document.querySelector('.target-month-picker').value;
+    if (!monthVal) return;
+    const [year, month] = monthVal.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const container = document.getElementById('event-dates-container');
+    container.innerHTML = '';
+
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    const events = appData.eventMasters || [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateObj = new Date(year, month - 1, d);
+      const dayOfWeek = dateObj.getDay();
+      const isSat = dayOfWeek === 6;
+      const isSun = dayOfWeek === 0;
+
+      let optionsHtml = '<option value="">-- イベントなし --</option>';
+      events.forEach(ev => {
+        optionsHtml += `<option value="${ev}">${ev}</option>`;
+      });
+
+      const row = document.createElement('div');
+      row.className = `date-row ${isSat ? 'is-sat' : ''} ${isSun ? 'is-sun' : ''}`;
+      row.innerHTML = `
+        <div class="date-label">${d}日 (${weekDays[dayOfWeek]})</div>
+        <div class="event-select-group">
+          <select id="event-${d}-1">${optionsHtml}</select>
+          <select id="event-${d}-2">${optionsHtml}</select>
+          <select id="event-${d}-3">${optionsHtml}</select>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+    loadCurrentMonthlyEvents();
+  }
+
+  function toggleCircle(day) {
+    const btn = document.getElementById(`circle-${day}`);
+    if (btn.classList.contains('checked')) {
+      btn.classList.remove('checked');
+      btn.textContent = '';
+    } else {
+      btn.classList.add('checked');
+      btn.textContent = '〇';
+    }
+  }
+
+  function loadCurrentUserData() {
+    const month = document.querySelector('.target-month-picker').value;
+    const user = document.getElementById('user-select').value;
+    const key = `${month}_${user}`;
+    const userData = (appData.shifts && appData.shifts[key]) ? appData.shifts[key] : {};
+
+    const [year, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, m, 0).getDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const btn = document.getElementById(`circle-${d}`);
+      const commentInput = document.getElementById(`comment-${d}`);
+      if (!btn || !commentInput) continue;
+
+      if (userData[d] && userData[d].ok) {
+        btn.classList.add('checked');
+        btn.textContent = '〇';
+      } else {
+        btn.classList.remove('checked');
+        btn.textContent = '';
+      }
+      commentInput.value = (userData[d] && userData[d].comment) ? userData[d].comment : '';
+    }
+  }
+
+  function loadCurrentMonthlyEvents() {
+    const month = document.querySelector('.target-month-picker').value;
+    const monthEvents = (appData.monthlyEvents && appData.monthlyEvents[month]) ? appData.monthlyEvents[month] : {};
+
+    const [year, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, m, 0).getDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const selectedList = monthEvents[d] || [];
+      for (let i = 1; i <= 3; i++) {
+        const sel = document.getElementById(`event-${d}-${i}`);
+        if (sel) {
+          sel.value = selectedList[i - 1] || "";
+        }
+      }
+    }
+  }
+
+  async function saveShift() {
+    const month = document.querySelector('.target-month-picker').value;
+    const user = document.getElementById('user-select').value;
+    if (!user) {
+      alert('担当者を選択してください。');
+      return;
+    }
+    const key = `${month}_${user}`;
+    const [year, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, m, 0).getDate();
+
+    const userShift = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isOk = document.getElementById(`circle-${d}`).classList.contains('checked');
+      const comment = document.getElementById(`comment-${d}`).value.trim();
+      if (isOk || comment) {
+        userShift[d] = { ok: isOk, comment: comment };
+      }
+    }
+
+    if (!appData.shifts) appData.shifts = {};
+    appData.shifts[key] = userShift;
+    await syncToCloud();
+  }
+
+  async function saveMonthlyEvents() {
+    const month = document.querySelector('.target-month-picker').value;
+    const [year, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, m, 0).getDate();
+
+    const eventsData = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayEvents = [];
+      for (let i = 1; i <= 3; i++) {
+        const val = document.getElementById(`event-${d}-${i}`).value;
+        if (val) dayEvents.push(val);
+      }
+      if (dayEvents.length > 0) {
+        eventsData[d] = dayEvents;
+      }
+    }
+
+    if (!appData.monthlyEvents) appData.monthlyEvents = {};
+    appData.monthlyEvents[month] = eventsData;
+    await syncToCloud();
+  }
+
+  function renderShiftTable() {
+    const monthVal = document.querySelector('.target-month-picker').value;
+    const [year, month] = monthVal.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    document.getElementById('table-header-title').textContent = `${year}年${month}月の勤務予定表`;
+
+    const table = document.getElementById('shift-table');
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    const monthEvents = (appData.monthlyEvents && appData.monthlyEvents[monthVal]) ? appData.monthlyEvents[monthVal] : {};
+
+    // 1行目: 日付ヘッダー ＋ 「勤務数」列（縦書き）
+    let html = `<thead><tr><th style="min-width:80px;">日付</th><th class="vertical-header">勤務数</th>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayOfWeek = new Date(year, month - 1, d).getDay();
+      const cls = dayOfWeek === 6 ? 'sat-col' : dayOfWeek === 0 ? 'sun-col' : '';
+      html += `<th class="${cls}">${d}<br><small>(${weekDays[dayOfWeek]})</small></th>`;
+    }
+    html += `</tr>`;
+
+    // 2行目: イベント表示行 ＋ 勤務数列位置の空白セル
+    html += `<tr><th style="background:#fefcbf; color:#744210;">イベント</th><td></td>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayOfWeek = new Date(year, month - 1, d).getDay();
+      const cls = dayOfWeek === 6 ? 'sat-col' : dayOfWeek === 0 ? 'sun-col' : '';
+      const evList = monthEvents[d] || [];
+      let evHtml = evList.map(ev => `<span class="event-tag-item">${ev}</span>`).join('');
+      html += `<td class="${cls} event-display-cell">${evHtml}</td>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    // 3行目以降: 各担当者の出勤予定 ＋ 勤務日数の集計
+    appData.members.forEach(member => {
+      const key = `${monthVal}_${member}`;
+      const userShift = (appData.shifts && appData.shifts[key]) ? appData.shifts[key] : {};
+      
+      // 出勤日数（〇の数）をカウント
+      let workCount = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        if (userShift[d] && userShift[d].ok) {
+          workCount++;
+        }
+      }
+
+      html += `<tr><td><strong>${member}</strong></td><td><strong>${workCount}</strong></td>`;
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const item = userShift[d];
+        const mark = (item && item.ok) ? '<strong style="font-size:18px;">〇</strong>' : '';
+        const comm = (item && item.comment) ? `<span class="comment-cell">${item.comment}</span>` : '';
+        html += `<td>${mark}${comm}</td>`;
+      }
+      html += `</tr>`;
+    });
+
+    html += `</tbody>`;
+    table.innerHTML = html;
+
+    // 印刷用カレンダーのレンダリングを呼び出し
+    renderPrintCalendar(year, month, monthVal, daysInMonth, monthEvents);
+  }
+
+  // 印刷専用のカレンダー(週単位テーブル)を出力する関数
+  function renderPrintCalendar(year, month, monthVal, daysInMonth, monthEvents) {
+    document.getElementById('print-header-title').textContent = `${year}年${month}月 勤務予定表`;
+    const container = document.getElementById('print-calendar-content');
+    container.innerHTML = '';
+
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    const firstDayIndex = new Date(year, month - 1, 1).getDay(); // 1日の曜日 (0:日 ~ 6:土)
+
+    // 日付を週ごとに分割 (7日ごとの配列)
+    const weeks = [];
+    let currentWeek = new Array(7).fill(null);
+
+    // 1週目の前の空欄
+    for (let i = 0; i < firstDayIndex; i++) {
+      currentWeek[i] = null;
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayOfWeek = new Date(year, month - 1, d).getDay();
+      currentWeek[dayOfWeek] = d;
+
+      if (dayOfWeek === 6 || d === daysInMonth) {
+        weeks.push(currentWeek);
+        currentWeek = new Array(7).fill(null);
+      }
+    }
+
+    // 各週ごとにテーブルを生成
+    weeks.forEach((week, weekIdx) => {
+      let tableHtml = `<table class="print-table">`;
+      tableHtml += `<colgroup><col class="col-member"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"></colgroup>`;
+
+      // 【第1週目のみ】1行目: 担当者 & 曜日
+      if (weekIdx === 0) {
+        tableHtml += `<thead><tr><th>担当者</th>`;
+        weekDays.forEach((wd, idx) => {
+          const cls = idx === 0 ? 'print-sun' : idx === 6 ? 'print-sat' : '';
+          tableHtml += `<th class="${cls}">${wd}</th>`;
+        });
+        tableHtml += `</tr></thead>`;
+      }
+
+      tableHtml += `<tbody>`;
+
+      // 2行目: 日付
+      tableHtml += `<tr>`;
+      if (weekIdx === 0) {
+        tableHtml += `<td><strong>日付</strong></td>`;
+      } else {
+        tableHtml += `<td></td>`;
+      }
+
+      for (let i = 0; i < 7; i++) {
+        const d = week[i];
+        const cls = i === 0 ? 'print-sun' : i === 6 ? 'print-sat' : '';
+        if (d) {
+          tableHtml += `<td class="${cls}"><strong>${d}日</strong></td>`;
+        } else {
+          tableHtml += `<td class="empty-day"></td>`;
+        }
+      }
+      tableHtml += `</tr>`;
+
+      // 3行目: イベント
+      tableHtml += `<tr class="print-event-row">`;
+      if (weekIdx === 0) {
+        tableHtml += `<td><strong>イベント</strong></td>`;
+      } else {
+        tableHtml += `<td></td>`;
+      }
+
+      for (let i = 0; i < 7; i++) {
+        const d = week[i];
+        const cls = i === 0 ? 'print-sun' : i === 6 ? 'print-sat' : '';
+        if (d) {
+          const evList = monthEvents[d] || [];
+          const evText = evList.join('<br>');
+          tableHtml += `<td class="${cls}">${evText}</td>`;
+        } else {
+          tableHtml += `<td class="empty-day"></td>`;
+        }
+      }
+      tableHtml += `</tr>`;
+
+      // 4行目以降: 担当者と出勤予定 (〇)
+      appData.members.forEach(member => {
+        tableHtml += `<tr>`;
+        tableHtml += `<td><strong>${member}</strong></td>`;
+
+        for (let i = 0; i < 7; i++) {
+          const d = week[i];
+          const cls = i === 0 ? 'print-sun' : i === 6 ? 'print-sat' : '';
+          if (d) {
+            const key = `${monthVal}_${member}`;
+            const userShift = (appData.shifts && appData.shifts[key]) ? appData.shifts[key] : {};
+            const mark = (userShift[d] && userShift[d].ok) ? '〇' : '';
+            tableHtml += `<td class="${cls}">${mark}</td>`;
+          } else {
+            tableHtml += `<td class="empty-day"></td>`;
+          }
+        }
+        tableHtml += `</tr>`;
+      });
+
+      tableHtml += `</tbody></table>`;
+      
+      // 週と週の間に少しの隙間を挿入（最終週以外）
+      if (weekIdx < weeks.length - 1) {
+        tableHtml += `<div style="height: 4px;"></div>`;
+      }
+
+      container.innerHTML += tableHtml;
+    });
+  }
+</script>
+
+</body>
+</html>
